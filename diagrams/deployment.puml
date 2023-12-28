@@ -1,0 +1,151 @@
+@startuml
+!include C4_Deployment.puml
+!include C4_Component.puml
+
+title Rahel's home lab configuration
+
+Node(world, "The world", "External devices/Nodes") {
+Container(email, "Mailserver", "Mailgun", "mg.rahmed.work")
+Container(dns, "DNS", "Namecheap/Cloudflare", "rahmed.work")
+Container(blog, "Blog", "GitHub pages", "www.rahmed.work")
+Container(reverseProxy, "Reverse Proxy", "Cloudflare")
+
+Person(rahel, "Rahel", "Android phone/Asus laptop")
+Person(spouse, "Spouse", "Android phone")
+Component(vpn, "VPN", "Wireguard", "test")
+}
+
+Node(lan, "Local Area Network 10.139.21.0/24", "Linksys router + Netgear switch") {
+        Node(dmz, "DMZ", "Linksys router") {
+        Container(world2, "external world", "world ingress")
+        Node(pi, "pi-1.local", "NixOS on Raspberry Pi v4") {
+            Component(usbZigbee, "Zigbee USB device")
+            Component(usbBluetooth, "Bluetooth USB device")
+            Node(piNixK8s, "node pi-1", "K3s") {
+                Node(piNixK8sWireguard, "wireguard", "k8s namespace") {
+                    Container(wireguard, "wireguard", "", "Network policy egress only to smarthome/work")
+                }
+                Node(piNixK8sSmarthome, "smarthome", "k8s namespace") {
+                    Container(zig2mqtt, "zigbee2mqtt", "Zigbee2mqtt")
+                    Container(mqtt, "mqttbroker-mosquitto", "Mosquitto")
+                    Container(homeassistant, "homeassistant", "Homeassistant")
+                    Container(smartled, "smartled", "gvm2mqtt", "Controls studio lights")
+                }
+                Node(piNixK8sSystem, "system", "k8s namespace") {
+                    Container(traefikPi, "traefik")
+                }
+            }
+        }
+    }
+
+    Node(truenas, "truenas.local", "TrueNAS Scale, Intel i7-4770K, NVidia GTX 980") {
+   
+        Node(zfsPoolHDD, "HDDs", "ZFS pool (RAIDZ2 8 drives)") {
+            /'
+            ContainerDb(datasetMedia, "HDDs/multimedia", "ZFS dataset", "Entertainment")
+            '/
+            ContainerDb(datasetFamily, "HDDs/personal-media", "ZFS dataset", "Family collection")
+            ContainerDb(datasetWork, "HDDs/project", "ZFS dataset", "Personal projects")
+        }
+        Node(zfsPoolSSD, "SSDs", "ZFS pool (single drive)") {
+            ContainerDb(datasetApps, "SSDs/external-applications", "ZFS dataset", "Storage for apps")
+        }
+       
+        Node(truenasVM, "main-vm", "Ubuntu Server 22.04 LTS") {
+            Node(truenasVMK8s, "node vm-1", "K3s") {
+                Node(truenasVMK8sSystem, "system", "K8s namespace") {
+                    Container(traefikVm, "traefik", "traefik ingress")
+                }
+               
+                Node(truenasVMK8sMedia, "media", "K8s namespace") {
+                    Container(jellyfin, "jellyfin", "Jellyfin v10.8", "media.rahmed.work")
+                }
+                Node(truenasVMK8sFamily, "family", "k8s namespace") {
+                    Container(gramps, "gramps", "gramp.js", "family.rahmed.work")
+                }
+                Node(truenasVMK8sSso, "sso", "k8s namespace") {
+                    Container(authentik, "authentik", "Authentik", "sso.rahmed.work")
+                }
+               
+                Node(truenasVMK8sMonitoring, "monitoring", "k8s namespace") {
+                    Container(prometheusStack1, "grafana", "Grafana")
+                    Container(prometheusStack2, "alertmanager", "Alertmanager")
+                    ContainerDb(prometheusStack3, "prometheus", "Prometheus")
+                }
+               
+                /'
+                Node(truenasVMK8sManager, "manager", "K8s namespace") {
+                    Container(sonarr1, "sonarr-anime", "Sonarr")
+                    Container(sonarr2, "sonarr-tv", "Sonarr")
+                    Container(radarr, "radarr", "radarr")
+                    Container(qbitt, "qbittorrent", "QBittorrent")
+                }
+                '/
+               
+                Node(truenasVMK8sWork, "work", "k8s namespace") {
+                    Container(trilium, "trilium", "trilium-notes")
+                }
+                Node(truenasVMK8sAds, "network", "k8s namespace") {
+                    Container(pihole, "pihole", "Pi-Hole")
+                }
+            }
+        }
+    }
+    /'
+    Node(devices, "Smarthome Devices", "") {
+   
+        Node(office, "Office", "") {
+            Component(desktop, "Desktop", "Custom built")
+            Component(officeLight, "above PC lights", "Zigbee lights")
+            Component(studioLight, "studio lights x2", "GVM 800D-RGB")
+            Component(cam, "studio cam", "Panasonic GH4")
+        }
+        Node(bedroom, "Bedroom", "") {
+            Component(bedLight, "bedroom lights", "IKEA smart lights")
+            Component(bedSensor, "door sensors", "Zigbee door sensors")
+        }
+        Node(livingroom, "Living room", "") {
+            Component(tv, "Android TV", "Sony X90J")
+            Component(dvr, "AVR", "Denon AVR-X2700H")
+            Component(light1, "TV light 1", "Ikea lights")
+            Component(light2, "TV light 2", "Ikea lights")
+            Component(air, "air monitor", "Uhoo Smart Air")
+            Component(light3, "couch light", "Ikea lights")
+        }
+    }
+    '/
+}
+
+
+Rel(smartled, usbBluetooth, "HW", "BLE")
+Rel(zig2mqtt, usbZigbee, "HW", "Zigbee")
+BiRel(zig2mqtt, mqtt, "Uses", "MQTT")
+BiRel(smartled, mqtt, "Uses", "MQTT")
+BiRel(homeassistant, mqtt, "Uses", "MQTT")
+
+Rel(gramps, datasetFamily, "", "")
+
+/'
+Rel(jellyfin, datasetMedia, "", "")
+Rel(sonarr1, datasetMedia, "", "")
+Rel(sonarr2, datasetMedia, "", "")
+Rel(radarr, datasetMedia, "", "")
+Rel(qbitt, datasetMedia, "", "")
+'/
+
+Rel(wireguard, datasetApps, "", "NFS v4.2")
+Rel(homeassistant, datasetApps, "", "NFS v4.2")
+Rel(trilium, datasetWork, "", "")
+
+Rel(world2, traefikPi, "Uses", "HTTPS")
+Rel(traefikPi, traefikVm, "Uses", "HTTPS")
+Rel(traefikVm, jellyfin, "Uses", "HTTPS")
+Rel(traefikVm, gramps, "Uses", "HTTPS")
+Rel(traefikVm, authentik, "Uses", "HTTPS")
+
+Rel(reverseProxy, world2, "Uses", "HTTPS")
+Rel(rahel, vpn, "", "")
+Rel(spouse, vpn, "", "")
+Rel(vpn, wireguard, "", "")
+
+@enduml
