@@ -2,17 +2,19 @@
 config:
   sankey:
     showValues: true
+    width: 800
+    nodeAlignment: right
 ---
 sankey-beta
 
 Jobs applied to,Local,57
-Jobs applied to,Europe,21
+Jobs applied to,EU,21
 
 Local,LinkedIn,5
-Europe,LinkedIn,10
+EU,LinkedIn,10
 
 Local,Direct,52
-Europe,Direct,11
+EU,Direct,11
 
 Direct,1st stage,19
 Direct,Rejected,43

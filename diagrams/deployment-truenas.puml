@@ -2,40 +2,15 @@
 !include C4_Deployment.puml
 !include C4_Component.puml
 
-title Rahel's home lab configuration
+title Rahel's TrueNAS Scale home lab configuration
 
 Node(world, "The world", "External devices/Nodes") {
-    Container(email, "Mailserver", "Mailgun", "mg.rahmed.work")
-    Container(dns, "DNS", "Namecheap/Cloudflare", "rahmed.work")
-    Container(blog, "Blog", "GitHub pages", "www.rahmed.work")
     Container(reverseProxy, "Reverse Proxy", "Cloudflare")
-
-    Person(rahel, "Rahel", "Android phone/Asus laptop")
-    Person(spouse, "Spouse", "Android phone")
-    Component(vpn, "VPN", "Wireguard")
 }
 
 Node(lan, "Local Area Network 10.139.21.0/24", "Linksys router + Netgear switch") {
     Node(dmz, "DMZ", "Linksys router") {
         Container(world2, "external world", "world ingress")
-        Node(pi, "pi-1.local", "NixOS on Raspberry Pi v4") {
-            Component(usbZigbee, "Zigbee USB device")
-            Component(usbBluetooth, "Bluetooth USB device")
-            Node(piNixK8s, "node pi-1", "K3s") {
-                Node(piNixK8sWireguard, "wireguard", "k8s namespace") {
-                    Container(wireguard, "wireguard", "", "Network policy egress only to smarthome/work")
-                }
-                Node(piNixK8sSmarthome, "smarthome", "k8s namespace") {
-                    Container(zig2mqtt, "zigbee2mqtt", "Zigbee2mqtt")
-                    Container(mqtt, "mqttbroker-mosquitto", "Mosquitto")
-                    Container(homeassistant, "homeassistant", "Homeassistant")
-                    Container(smartled, "smartled", "gvm2mqtt", "Controls studio lights")
-                }
-                Node(piNixK8sSystem, "system", "k8s namespace") {
-                    Container(traefikPi, "traefik")
-                }
-            }
-        }
     }
 
     Node(truenas, "truenas.local", "TrueNAS Scale, Intel i7-4770K, NVidia GTX 980") {
@@ -117,12 +92,6 @@ Node(lan, "Local Area Network 10.139.21.0/24", "Linksys router + Netgear switch"
 }
 
 
-Rel(smartled, usbBluetooth, "HW", "BLE")
-Rel(zig2mqtt, usbZigbee, "HW", "Zigbee")
-BiRel(zig2mqtt, mqtt, "Uses", "MQTT")
-BiRel(smartled, mqtt, "Uses", "MQTT")
-BiRel(homeassistant, mqtt, "Uses", "MQTT")
-
 Rel(gramps, datasetFamily, "", "")
 
 /'
@@ -144,8 +113,5 @@ Rel(traefikVm, gramps, "Uses", "HTTPS")
 Rel(traefikVm, authentik, "Uses", "HTTPS")
 
 Rel(reverseProxy, world2, "Uses", "HTTPS")
-Rel(rahel, vpn, "", "")
-Rel(spouse, vpn, "", "")
-Rel(vpn, wireguard, "", "")
 
 @enduml

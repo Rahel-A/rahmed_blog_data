@@ -1,0 +1,56 @@
+@startuml
+!include C4_Deployment.puml
+!include C4_Component.puml
+
+title Rahel's Pi home lab configuration
+
+Node(world, "The world", "External devices/Nodes") {
+    Container(reverseProxy, "Reverse Proxy", "Cloudflare")
+
+    Person(rahel, "Rahel", "Android phone/Asus laptop")
+    Person(spouse, "Spouse", "Android phone")
+    Component(vpn, "VPN", "Wireguard")
+}
+
+Node(lan, "Local Area Network 10.139.21.0/24", "Linksys router + Netgear switch") {
+        Node(dmz, "DMZ", "Linksys router") {
+        Container(world2, "external world", "world ingress")
+        Node(pi, "pi-1.local", "NixOS on Raspberry Pi v4") {
+            Component(usbZigbee, "Zigbee USB device")
+            Component(usbBluetooth, "Bluetooth USB device")
+            Node(piNixK8s, "node pi-1", "K3s") {
+                Node(piNixK8sWireguard, "wireguard", "k8s namespace") {
+                    Container(wireguard, "wireguard", "", "Network policy egress only to smarthome/work")
+                }
+                Node(piNixK8sSmarthome, "smarthome", "k8s namespace") {
+                    Container(zig2mqtt, "zigbee2mqtt", "Zigbee2mqtt")
+                    Container(mqtt, "mqttbroker-mosquitto", "Mosquitto")
+                    Container(homeassistant, "homeassistant", "Homeassistant")
+                    Container(smartled, "smartled", "gvm2mqtt", "Controls studio lights")
+                }
+                Node(piNixK8sSystem, "system", "k8s namespace") {
+                    Container(traefikPi, "traefik")
+                }
+            }
+        }
+    }
+}
+
+
+Rel(smartled, usbBluetooth, "HW", "BLE")
+Rel(zig2mqtt, usbZigbee, "HW", "Zigbee")
+BiRel(zig2mqtt, mqtt, "Uses", "MQTT")
+BiRel(smartled, mqtt, "Uses", "MQTT")
+BiRel(homeassistant, mqtt, "Uses", "MQTT")
+
+Rel(wireguard, datasetApps, "", "NFS v4.2")
+Rel(homeassistant, datasetApps, "", "NFS v4.2")
+
+Rel(world2, traefikPi, "Uses", "HTTPS")
+
+Rel(reverseProxy, world2, "Uses", "HTTPS")
+Rel(rahel, vpn, "", "")
+Rel(spouse, vpn, "", "")
+Rel(vpn, wireguard, "", "")
+
+@enduml
